@@ -1,7 +1,9 @@
 import 'dart:math';
 
 import 'package:equatable/equatable.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:scrollview_observer/scrollview_observer.dart';
 
 import 'message_list_item.dart';
 
@@ -11,6 +13,7 @@ class MessageListCubit extends Cubit<MessageListState> {
   MessageListCubit() : super(const MessageListState());
 
   final _items = <int, MessageListItem>{};
+  ChatScrollObserver? observer;
 
   Future<void> init() async {
     await Future.delayed(Duration.zero);
@@ -45,13 +48,14 @@ class MessageListCubit extends Cubit<MessageListState> {
       _items[element.id] = element;
     }
 
+    observer?.observeSwitchShrinkWrap();
     emit(state.copyWith(
         status: MessageListStatus.success,
         items: _items.values.toList(growable: false),
         lastMessageId: 0));
   }
 
-  Future<void> createMessage() async {
+  Future<void> createMessage(VoidCallback? onCreate) async {
     emit(state.copyWith(status: MessageListStatus.updating));
     final last = _items.keys.lastOrNull ?? 0;
 
@@ -65,6 +69,7 @@ class MessageListCubit extends Cubit<MessageListState> {
         edited: false,
         readState: false);
 
+    onCreate?.call();
     emit(state.copyWith(
         status: MessageListStatus.success,
         items: _items.values.toList(growable: false)));

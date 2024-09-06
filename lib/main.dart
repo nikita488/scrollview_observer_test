@@ -47,6 +47,7 @@ class _MainAppState extends State<MainApp> {
         print('Rebuild scroll view');
         context.read<MessageListCubit>().resetMessages();
       };
+    context.read<MessageListCubit>().observer = chatObserver;
     super.initState();
   }
 
@@ -65,8 +66,9 @@ class _MainAppState extends State<MainApp> {
               trailing: IconButton(
                   icon: const Icon(Icons.add),
                   onPressed: () {
-                    chatObserver.standby();
-                    context.read<MessageListCubit>().createMessage();
+                    context
+                        .read<MessageListCubit>()
+                        .createMessage(() => chatObserver.standby());
                   })),
           Expanded(
             child: ListViewObserver(
@@ -74,23 +76,34 @@ class _MainAppState extends State<MainApp> {
               child: BlocBuilder<MessageListCubit, MessageListState>(
                   buildWhen: (previous, current) => current.status.isSuccess,
                   builder: (context, state) {
-                    print('Rebuild List: ${chatObserver.isShrinkWrap}');
                     final items = state.items;
-                    return ListView.builder(
-                        controller: scrollController,
-                        reverse: true,
-                        physics: ChatObserverClampingScrollPhysics(
-                            observer: chatObserver),
-                        shrinkWrap: chatObserver.isShrinkWrap,
-                        itemCount: items.length,
-                        itemBuilder: (context, index) {
-                          final itemIndex = index;
-                          final reversedIndex = items.length - itemIndex - 1;
-                          final item = items[reversedIndex];
-                          return ListTile(
-                              title: Text(item.text),
-                              leading: const Icon(Icons.message));
-                        });
+                    if (state.status == MessageListStatus.initial) {
+                      return const Center(child: CircularProgressIndicator());
+                    } else {
+                      print('Rebuild List: ${chatObserver.isShrinkWrap}');
+                      return ListView.builder(
+                          controller: scrollController,
+                          reverse: true,
+                          physics: ChatObserverClampingScrollPhysics(
+                              observer: chatObserver),
+                          shrinkWrap: chatObserver.isShrinkWrap,
+                          itemCount: items.length,
+                          itemBuilder: (context, index) {
+                            if (scrollController.hasClients &&
+                                (observerController.sliverContexts.isEmpty ||
+                                    observerController.sliverContexts.first !=
+                                        context)) {
+                              observerController.reattach();
+                              print('NEEDS REATTACH');
+                            }
+                            final itemIndex = index;
+                            final reversedIndex = items.length - itemIndex - 1;
+                            final item = items[reversedIndex];
+                            return ListTile(
+                                title: Text(item.text),
+                                leading: const Icon(Icons.message));
+                          });
+                    }
                   }),
             ),
           ),
